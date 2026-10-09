@@ -1,0 +1,64 @@
+{% set ssl_role = 'admin' %}
+{% set service = admin.order_service({id: order.id})|default({}) %}
+{% if service %}
+<div class="card mb-4"><div class="card-body">
+    <h2>{{ 'SSL subscription'|trans }} — {{ service.domain_name }}</h2>
+    <p>{{ 'Covered domains'|trans }}: <strong>{{ service.domains|join(', ') }}</strong></p>
+    <p>{{ 'Issuer'|trans }}: {{ service.issuer_label }} · {{ 'Provisioning status'|trans }}: <strong>{{ service.status }}</strong></p>
+    {% if service.coverage_expires_at %}<p>{{ 'Coverage expires'|trans }}: {{ service.coverage_expires_at }}</p>{% endif %}
+    {% if service.emulated %}<div class="alert alert-warning">{{ 'Simulation only. This endpoint and its credentials cannot issue certificates.'|trans }}</div>
+    {% elseif service.environment == 'staging' %}<div class="alert alert-warning">{{ 'Testing environment: certificates are not trusted by browsers.'|trans }}</div>{% endif %}
+    {% if not service.managed %}<p>{{ 'This subscription covers your SSL management service. Let’s Encrypt remains publicly available independently of your subscription.'|trans }}</p>{% endif %}
+    {% if service.last_error %}<div class="alert alert-warning">{{ service.last_error }}</div>{% endif %}
+    {% if service.pending_action %}<p>{{ 'Provisioning is pending. Contact support if it does not complete.'|trans }}</p>{% endif %}
+    {% if service.directory_url %}<p>{{ 'ACME directory'|trans }}: <code class="text-break">{{ service.directory_url }}</code></p>{% endif %}
+    <p>{{ 'Your server tool registers an ACME account, validates domain ownership, installs certificates and renews them while coverage is active. Your private keys stay on your server.'|trans }}</p>
+    {% if order.status == 'active' and service.remote_state == 'active' and not service.pending_action %}
+    <form class="d-inline-block mb-2" action="{{ 'servicessl/handoff'|api_url(role=ssl_role) }}" {{ fb_api_form({callback: 'namingoSslDownloadSetup'}) }}>
+        <input type="hidden" name="order_id" value="{{ order.id }}"><button class="btn btn-primary" type="submit">{{ 'Download ACME setup'|trans }}</button>
+    </form>
+    <form class="d-inline-block mb-2" action="{{ 'servicessl/pairing'|api_url(role=ssl_role) }}" {{ fb_api_form({callback: 'namingoSslPairing'}) }}>
+        <input type="hidden" name="order_id" value="{{ order.id }}"><button class="btn btn-outline-primary" type="submit">{{ 'Create or replace tool pairing token'|trans }}</button>
+    </form>
+    <p>{{ 'The setup file may contain secret account credentials. Store it on your server with permissions 0600. The customer tool will be provided separately.'|trans }}</p>
+    {% else %}<div class="alert alert-info">{{ 'ACME setup requires an active subscription and successful issuer provisioning.'|trans }}</div>{% endif %}
+    {% if service.pairing_enabled %}
+    <form class="d-inline-block mb-2" action="{{ 'servicessl/revoke_pairing'|api_url(role=ssl_role) }}" {{ fb_api_form({reload: true}) }}>
+        <input type="hidden" name="order_id" value="{{ order.id }}"><button class="btn btn-outline-danger" type="submit">{{ 'Revoke tool pairing token'|trans }}</button>
+    </form>
+    {% endif %}
+    <form class="d-inline-block mb-2" action="{{ 'servicessl/refresh'|api_url(role=ssl_role) }}" {{ fb_api_form({reload: true}) }}>
+        <input type="hidden" name="order_id" value="{{ order.id }}"><button class="btn btn-outline-secondary" type="submit">{{ 'Refresh subscription'|trans }}</button>
+    </form>
+    {% if ssl_role == 'admin' %}
+    <form class="d-inline-block mb-2" action="{{ 'servicessl/retry'|api_url(role=ssl_role) }}" {{ fb_api_form({reload: true}) }}>
+        <input type="hidden" name="order_id" value="{{ order.id }}"><button class="btn btn-outline-primary" type="submit">{{ 'Retry issuer synchronization'|trans }}</button>
+    </form>
+    <p>{{ 'For any failed lifecycle action, retry the normal billing order action so order status and expiry are updated.'|trans }}</p>
+    {% endif %}
+    <div id="namingo-ssl-pairing" class="mt-3" hidden><pre class="border p-3 text-break"></pre></div>
+    {% if service.legacy_certificates %}
+    <h3>{{ 'Certificates from the previous module'|trans }}</h3>
+    <p>{{ 'These historical certificates remain downloadable. Manage certificate renewal and revocation with your ACME client.'|trans }}</p>
+    {% for certificate in service.legacy_certificates %}
+    <form class="mb-2" action="{{ 'servicessl/download'|api_url(role=ssl_role) }}" {{ fb_api_form({callback: 'namingoSslDownloadPem'}) }}>
+        <input type="hidden" name="order_id" value="{{ order.id }}"><input type="hidden" name="certificate_id" value="{{ certificate.id }}">
+        <input type="hidden" name="format" value="fullchain"><span>{{ certificate.expires_at }} UTC </span><button class="btn btn-outline-primary btn-sm" type="submit">{{ 'Download PEM'|trans }}</button>
+    </form>
+    {% endfor %}
+    {% endif %}
+</div></div>
+<script>
+function namingoSslSave(filename, contents, mime) {
+    const url = URL.createObjectURL(new Blob([contents], {type: mime}));
+    const link = document.createElement('a'); link.href = url; link.download = filename;
+    document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function namingoSslDownloadSetup(result) { namingoSslSave(result.filename, JSON.stringify(result.config, null, 2) + '\n', 'application/json'); }
+function namingoSslDownloadPem(result) { namingoSslSave(result.filename, result.pem, 'application/x-pem-file'); }
+function namingoSslPairing(result) {
+    const box = document.getElementById('namingo-ssl-pairing'); box.hidden = false;
+    box.querySelector('pre').textContent = JSON.stringify(result, null, 2);
+}
+</script>
+{% endif %}

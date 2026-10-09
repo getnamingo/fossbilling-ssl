@@ -1,0 +1,6 @@
+{
+ "id": "servicessl", "type": "mod", "name": "Namingo SSL",
+ "description": "SSL subscriptions and ACME account provisioning for customer-managed certificate automation",
+ "icon_url": "icon.svg", "version": "2.0.0", "minimum_fossbilling_version": "0.8.8",
+ "author": "Namingo", "author_url": "https://namingo.org/"
+}

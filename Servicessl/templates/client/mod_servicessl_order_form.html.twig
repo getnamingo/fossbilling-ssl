@@ -1,0 +1,13 @@
+{{ product_details }}
+{% set ssl_options = guest.servicessl_options({product_id: product.id}) %}
+<p>{% if ssl_options.domain_mode == 'wildcard' %}{{ 'Covers the entered domain and its wildcard subdomains.'|trans }}
+{% elseif ssl_options.domain_mode == 'www' %}{{ 'Covers the entered domain and its www hostname.'|trans }}
+{% else %}{{ 'Covers the entered domain only.'|trans }}{% endif %}</p>
+{% if ssl_options.emulated %}<div class="alert alert-warning">{{ 'Simulation product: no certificates will be issued.'|trans }}</div>
+{% elseif ssl_options.environment == 'staging' %}<div class="alert alert-warning">{{ 'Testing product: certificates are not trusted by browsers.'|trans }}</div>{% endif %}
+<div class="mb-3">
+    <label class="form-label" for="ssl-domain-name">{{ 'Domain for this SSL subscription'|trans }}</label>
+    <input class="form-control" type="text" id="ssl-domain-name" name="domain_name" placeholder="example.com" maxlength="253" required autocomplete="off" autocapitalize="off">
+    <div class="form-text">{{ 'Enter the domain without https://, a path or a wildcard. After activation, download the ACME setup file for your server.'|trans }}</div>
+</div>
+<input type="hidden" name="id" value="{{ product.id }}"><input type="hidden" name="quantity" value="1">

@@ -1,0 +1,39 @@
+{% set config = product.config|default({}) %}
+<div class="card-body">
+    <h2>{{ 'SSL subscription settings'|trans }}</h2>
+    <p>{{ 'Set free or paid pricing in the normal product pricing tab. A billing renewal extends service coverage; the customer ACME tool renews certificates separately.'|trans }}</p>
+    <form action="{{ 'product/update_config'|api_url(role='admin') }}" {{ fb_api_form({message: 'SSL settings saved'|trans}) }}>
+        <div class="mb-3">
+            <label class="form-label">{{ 'Issuer profile'|trans }}</label>
+            <select class="form-select" name="config[issuer]" required>
+                {% for id, label in admin.servicessl_providers %}
+                <option value="{{ id }}" {% if config.issuer|default(config.provider|default('letsencrypt')) == id %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <div class="form-text">{{ 'Managed issuer profiles are configured by the operator. The simulation profile never issues certificates.'|trans }}</div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">{{ 'Covered names'|trans }}</label>
+            <select class="form-select" name="config[domain_mode]">
+                <option value="single" {% if config.domain_mode|default('single') == 'single' %}selected{% endif %}>{{ 'Entered domain'|trans }}</option>
+                <option value="www" {% if config.domain_mode|default('single') == 'www' %}selected{% endif %}>{{ 'Entered domain and www'|trans }}</option>
+                <option value="wildcard" {% if config.domain_mode|default('single') == 'wildcard' %}selected{% endif %}>{{ 'Entered domain and wildcard'|trans }}</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">{{ 'Environment'|trans }}</label>
+            <select class="form-select" name="config[environment]">
+                <option value="staging" {% if config.environment|default('staging') == 'staging' %}selected{% endif %}>{{ 'Staging / testing'|trans }}</option>
+                <option value="production" {% if config.environment|default('staging') == 'production' %}selected{% endif %}>{{ 'Production'|trans }}</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">{{ 'Issuer plan / reseller SKU'|trans }}</label>
+            <input class="form-control" name="config[issuer_plan]" maxlength="100" value="{{ config.issuer_plan|default('') }}">
+            <div class="form-text">{{ 'Use the plan recognized by your issuer provisioning API. Leave empty for direct Let’s Encrypt.'|trans }}</div>
+        </div>
+        <p>{{ 'Managed coverage needs a recurring billing period. Certificates and their private keys are generated and installed on the customer server.'|trans }}</p>
+        <input type="hidden" name="id" value="{{ product.id }}">
+        <button class="btn btn-primary" type="submit">{{ 'Save SSL settings'|trans }}</button>
+    </form>
+</div>
